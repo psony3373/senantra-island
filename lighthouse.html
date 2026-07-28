@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SÉNANTRA — The Lighthouse</title>
+<link rel="icon" href="favicon_senantra.png" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon_senantra_white.png" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="favicon_senantra.png">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;1,300;1,400&family=Inter:wght@200;300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --teal: #22D8FF;
+  --teal-dim: rgba(34,216,255,0.5);
+  --white: #f0ede8;
+  --white-dim: rgba(240,237,232,0.5);
+  --bg: #04080f;
+  --lx: 49.8%;
+  --ly: 39.9%;
+}
+html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--white); font-family:"Inter",sans-serif; }
+body::after {
+  content:""; position:fixed; inset:0; z-index:2; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-size:180px; opacity:0.028;
+}
+
+/* ═══════════════════════════════════════════
+   TRANSITION SEQUENCE
+   
+   Step 1  0.0–2.8s : Homepage zoom-fade
+   Step 2  2.75–4.15s: Black bridge
+   Step 3  4.05–5.85s: Lighthouse fade IN behind bridge/fog
+   Step 4  4.25–5.25s: Fog image fade IN
+           5.45–6.65s: Fog image fade OUT to 0 opacity
+═══════════════════════════════════════════ */
+
+/* STEP 1 — Homepage zoom out & fade */
+#seq-home {
+  position:fixed; inset:0; z-index:400;
+  background-image:url("assets/homepage-hero.webp");
+  background-size:cover; background-position:center 35%;
+  animation: seq-zoom 2.8s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes seq-zoom {
+  0%   { transform:scale(1);    opacity:1; }
+  55%  { transform:scale(1.18); opacity:0.4; }
+  100% { transform:scale(1.35); opacity:0; }
+}
+
+/* STEP 4 — Fog wall image
+   Uses fog_effect_element.png with a soft mask so the upper edge does not
+   show as a grey horizontal line around mid-viewport. */
+#seq-fog {
+  position:fixed; inset:-2vh 0 0; z-index:403; pointer-events:none;
+  background-image:url("assets/fog-effect.webp");
+  background-repeat:no-repeat;
+  background-position:center bottom;
+  background-size:100% 100%;
+  filter:blur(0.4px);
+  transform:scale(1.025);
+  transform-origin:center bottom;
+  -webkit-mask-image:linear-gradient(to bottom,
+    transparent 0%,
+    transparent 32%,
+    rgba(0,0,0,0.18) 42%,
+    rgba(0,0,0,0.72) 54%,
+    #000 66%,
+    #000 100%
+  );
+  mask-image:linear-gradient(to bottom,
+    transparent 0%,
+    transparent 32%,
+    rgba(0,0,0,0.18) 42%,
+    rgba(0,0,0,0.72) 54%,
+    #000 66%,
+    #000 100%
+  );
+  opacity:0;
+  animation:
+    fog-in  1s   ease-out 4.25s both,
+    fog-out 1.2s ease-in  5.45s forwards;
+}
+@keyframes fog-in  { from{opacity:0} to{opacity:1} }
+@keyframes fog-out { from{opacity:1} to{opacity:0} }
+
+/* STEP 2 — Black bridge */
+#seq-black {
+  position:fixed; inset:0; z-index:404; background:var(--bg); opacity:0;
+  animation:
+    blk-in  0.45s ease-in  2.75s both,
+    blk-out 0.7s  ease-out 4.15s forwards;
+}
+@keyframes blk-in  { from{opacity:0} to{opacity:1} }
+@keyframes blk-out { from{opacity:1} to{opacity:0} }
+
+/* ═══════════════════════════════
+   LIGHTHOUSE SCENE
+═══════════════════════════════ */
+.lh-bg {
+  position:fixed; inset:0; z-index:0;
+  background-image:url("assets/lighthouse-scene.webp");
+  background-size:cover; background-position:center 45%;
+  opacity:0; animation:scene-in 1.8s ease-out 4.05s both;
+}
+@keyframes scene-in { from{opacity:0;transform:scale(1.03)} to{opacity:1;transform:scale(1)} }
+
+.lh-overlay {
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:
+    linear-gradient(180deg,
+      rgba(4,8,15,0.28) 0%, transparent 16%,
+      transparent 44%,
+      rgba(4,8,15,0.48) 74%, rgba(4,8,15,0.88) 100%
+    ),
+    linear-gradient(90deg,
+      rgba(4,8,15,0.22) 0%, transparent 14%,
+      transparent 86%, rgba(4,8,15,0.22) 100%
+    );
+  opacity:0; animation:fade-plain 1.8s ease 4.15s both;
+}
+@keyframes fade-plain { from{opacity:0} to{opacity:1} }
+
+/* ═══════════════════════════════
+   BEAM SYSTEM
+═══════════════════════════════ */
+.beam-layer {
+  position:fixed; inset:0; z-index:5; pointer-events:none; overflow:hidden;
+  opacity:0; animation:fade-plain 1.5s ease 5.2s both;
+}
+.beam-left-outer {
+  position:absolute; top:var(--ly); left:var(--lx);
+  margin-top:-100px; margin-left:-58vw; width:58vw; height:200px;
+  clip-path:polygon(100% 50%, 0% 5%, 0% 95%);
+  background:linear-gradient(to left, rgba(22,148,180,0.28) 0%, rgba(22,130,162,0.08) 55%, transparent 100%);
+  transform-origin:right center; filter:blur(14px);
+  animation:beam-left 8s ease-in-out infinite;
+}
+.beam-left-core {
+  position:absolute; top:var(--ly); left:var(--lx);
+  margin-top:-45px; margin-left:-50vw; width:50vw; height:90px;
+  clip-path:polygon(100% 50%, 0% 15%, 0% 85%);
+  background:linear-gradient(to left, rgba(22,155,190,0.18) 0%, rgba(22,130,162,0.05) 48%, transparent 100%);
+  transform-origin:right center; filter:blur(5px);
+  animation:beam-left 8s ease-in-out infinite;
+}
+@keyframes beam-left {
+  0%   {opacity:0;   transform:rotate(-14deg)}
+  6%   {opacity:0.6; transform:rotate(-14deg)}
+  30%  {opacity:1;   transform:rotate(-5deg) }
+  46%  {opacity:1;   transform:rotate(-1deg) }
+  52%  {opacity:0;   transform:rotate(0deg)  }
+  100% {opacity:0;   transform:rotate(-14deg)}
+}
+.beam-right-outer {
+  position:absolute; top:var(--ly); left:var(--lx);
+  margin-top:-100px; width:58vw; height:200px;
+  clip-path:polygon(0% 50%, 100% 5%, 100% 95%);
+  background:linear-gradient(to right, rgba(22,148,180,0.28) 0%, rgba(22,130,162,0.08) 55%, transparent 100%);
+  transform-origin:left center; filter:blur(14px);
+  animation:beam-right 8s ease-in-out infinite;
+}
+.beam-right-core {
+  position:absolute; top:var(--ly); left:var(--lx);
+  margin-top:-45px; width:50vw; height:90px;
+  clip-path:polygon(0% 50%, 100% 15%, 100% 85%);
+  background:linear-gradient(to right, rgba(22,155,190,0.18) 0%, rgba(22,130,162,0.05) 48%, transparent 100%);
+  transform-origin:left center; filter:blur(5px);
+  animation:beam-right 8s ease-in-out infinite;
+}
+@keyframes beam-right {
+  0%,43%,48%{opacity:0;   transform:rotate(0deg) }
+  54%       {opacity:0.6; transform:rotate(0deg) }
+  65%       {opacity:1;   transform:rotate(3deg) }
+  80%       {opacity:1;   transform:rotate(8deg) }
+  94%       {opacity:0.5; transform:rotate(13deg)}
+  100%      {opacity:0;   transform:rotate(14deg)}
+}
+.beam-flash {
+  position:absolute; left:var(--lx); top:var(--ly);
+  transform:translate(-50%,-50%); width:220px; height:220px; border-radius:50%;
+  background:radial-gradient(ellipse at center, rgba(22,120,155,0.25) 0%, transparent 65%);
+  animation:beam-flash 8s ease-in-out infinite;
+}
+@keyframes beam-flash {
+  0%,46%,54%,100%{opacity:0;transform:translate(-50%,-50%) scale(0.8)}
+  50%            {opacity:1;transform:translate(-50%,-50%) scale(1.6)}
+}
+.beam-ambient {
+  position:absolute; left:var(--lx); top:var(--ly);
+  transform:translate(-50%,-50%); width:140px; height:140px; border-radius:50%;
+  background:radial-gradient(ellipse at center, rgba(22,130,160,0.35) 0%, rgba(22,100,130,0.12) 40%, transparent 70%);
+  animation:ambient-pulse 3s ease-in-out infinite;
+}
+@keyframes ambient-pulse {
+  0%,100%{opacity:0.7;transform:translate(-50%,-50%) scale(1)  }
+  50%    {opacity:1;  transform:translate(-50%,-50%) scale(1.3)}
+}
+.beam-core-dot {
+  position:absolute; left:var(--lx); top:var(--ly);
+  transform:translate(-50%,-50%); width:7px; height:7px; border-radius:50%;
+  background:rgba(130,225,245,0.95); z-index:2;
+  animation:core-pulse 3s ease-in-out infinite;
+}
+@keyframes core-pulse {
+  0%,100%{box-shadow:0 0 10px 4px rgba(22,140,175,0.75),0 0 30px 12px rgba(22,110,145,0.4) }
+  50%    {box-shadow:0 0 18px 8px rgba(22,155,190,0.9), 0 0 55px 22px rgba(22,120,155,0.55)}
+}
+.beam-water-ellipse {
+  position:absolute; left:var(--lx); top:59%; transform:translateX(-50%);
+  width:220px; height:120px;
+  background:radial-gradient(ellipse 100% 100% at 50% 0%, rgba(22,110,145,0.28) 0%, transparent 70%);
+  filter:blur(10px); animation:water-ellipse 5s ease-in-out 0.8s infinite;
+}
+@keyframes water-ellipse {
+  0%,100%{opacity:0.5;transform:translateX(-50%) scaleX(1)  }
+  50%    {opacity:0.8;transform:translateX(-50%) scaleX(1.5)}
+}
+
+#star-canvas { position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0; }
+
+/* ═══════════════════════════════
+   NAV
+═══════════════════════════════ */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:1.8rem 2.5rem;
+  opacity:0; animation:fade-up 1s ease 5.2s both;
+}
+.nav-brand {
+  display:flex; align-items:center; gap:.7rem;
+  font-family:"Playfair Display",serif; font-size:.78rem; font-weight:400; letter-spacing:.09em;
+  color:rgba(238,233,223,.8); text-decoration:none; transition:opacity .3s;
+}
+.nav-brand:hover { opacity:0.68; }
+.nav-brand img { width:15px;height:32px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(37,217,208,.22)); }
+.nav-label { display:inline; }
+.nav-audio {
+  display:flex; align-items:center; gap:10px;
+  font-family:"Inter",sans-serif; font-size:10px; font-weight:300; letter-spacing:0.28em;
+  color:var(--white-dim); cursor:pointer; transition:all .35s; border:none; background:none;
+}
+.nav-audio:hover, .nav-audio.active { color:var(--teal); }
+.audio-label { display:inline; }
+.audio-btn-circle {
+  width:34px; height:34px; border-radius:50%;
+  border:1px solid rgba(34,216,255,0.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:all .35s; position:relative; flex-shrink:0;
+}
+.nav-audio:hover .audio-btn-circle,
+.nav-audio.active .audio-btn-circle {
+  border-color:var(--teal); background:rgba(34,216,255,0.12); box-shadow:0 0 14px rgba(34,216,255,0.2);
+}
+.audio-btn-circle svg { width:13px; height:13px; }
+.audio-btn-circle::after {
+  content:""; position:absolute; inset:-4px; border-radius:50%;
+  border:1px solid rgba(34,216,255,0.55); opacity:0; transition:all .4s;
+}
+.nav-audio.active .audio-btn-circle::after {
+  opacity:.5; animation:pulse-ring 2.5s ease-in-out infinite;
+}
+@keyframes pulse-ring {
+  0%,100%{opacity:.5;transform:scale(1)} 50%{opacity:.1;transform:scale(1.2)}
+}
+@media(max-width:640px) {
+  nav{padding:1.4rem 1.6rem;}
+  .nav-label,.audio-label{display:none;}
+}
+
+/* ═══════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════ */
+main {
+  position:fixed; inset:0; z-index:10;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:flex-end;
+  text-align:center; padding:0 2rem 4rem;
+  opacity:0; animation:fade-up 1.2s ease 5.2s both;
+}
+.lh-content { display:flex; flex-direction:column; align-items:center; width:100%; max-width:560px; }
+.lh-eyebrow {
+  font-size:clamp(0.42rem,0.82vw,0.52rem); font-weight:300;
+  letter-spacing:0.4em; text-indent:0.4em; color:var(--teal-dim); margin-bottom:0.75rem;
+}
+.lh-quote {
+  font-family:"Playfair Display",serif; font-style:italic; font-weight:300;
+  font-size:clamp(0.8rem,1.5vw,1rem); line-height:2.12;
+  letter-spacing:.035em; color:rgba(240,237,232,0.56); max-width:480px; margin-bottom:1.15rem;
+}
+.lh-divider {
+  display:flex; align-items:center; justify-content:center; width:160px; margin:0 auto 1rem;
+}
+.lh-divider-line{flex:1;height:1px;display:block;}
+.lh-divider-line.left {background:linear-gradient(to right,transparent,rgba(34,216,255,0.5));}
+.lh-divider-line.right{background:linear-gradient(to left, transparent,rgba(34,216,255,0.5));}
+.lh-divider-diamond {
+  width:6px;height:6px;flex-shrink:0;background:var(--teal);transform:rotate(45deg);margin:0 10px;
+  box-shadow:0 0 8px rgba(34,216,255,0.9),0 0 16px rgba(34,216,255,0.4);
+}
+.lh-buttons{display:flex;gap:1rem;width:100%;justify-content:center;align-items:flex-start;}
+.lh-buttons .senantra-cta-unit{flex:1;max-width:240px}
+.lh-btn {
+  width:100%;padding:0.82rem 1.2rem;
+  font-family:"Inter",sans-serif;font-size:0.57rem;font-weight:300;
+  letter-spacing:0.3em;text-indent:0.3em;text-align:center;text-decoration:none;display:block;
+  position:relative;overflow:hidden;transition:all 0.5s ease;cursor:pointer;background:transparent;
+  white-space:nowrap;
+}
+.lh-btn::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(34,216,255,0.05),transparent);
+  transform:translateX(-100%);transition:transform .7s ease;
+}
+.lh-btn:hover::before{transform:translateX(100%);}
+.lh-btn-primary  {color:var(--white);border:1px solid rgba(240,237,232,0.32);}
+.lh-btn-primary:hover  {border-color:rgba(34,216,255,0.55);letter-spacing:0.36em;color:#fff;}
+.lh-btn-secondary{color:var(--white-dim);border:1px solid rgba(240,237,232,0.16);}
+.lh-btn-secondary:hover{border-color:rgba(240,237,232,0.35);color:var(--white);letter-spacing:0.36em;}
+@media(max-width:640px){
+  .lh-buttons{flex-direction:column;align-items:center;max-width:280px;margin:0 auto;}
+  .lh-buttons .senantra-cta-unit{flex:none;max-width:100%}
+  .lh-btn{flex:none;width:100%;max-width:100%;white-space:normal;}
+  main{padding:0 1.5rem 3rem;}
+}
+@keyframes fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.transition-overlay{
+  position:fixed;inset:0;z-index:600;background:var(--bg);
+  opacity:0;pointer-events:none;transition:opacity 1.5s ease;
+}
+.transition-overlay.active{opacity:1;pointer-events:all;}
+</style>
+<link rel="stylesheet" href="assets/senantra-ui.css">
+</head>
+<body>
+
+<!-- SEQUENCE: only 3 layers, clean -->
+<div id="seq-home"></div>
+<div id="seq-fog"></div>
+<div id="seq-black"></div>
+
+<!-- SCENE -->
+<div class="lh-bg"></div>
+<div class="lh-overlay"></div>
+<div class="beam-layer">
+  <div class="beam-left-outer"></div>
+  <div class="beam-left-core"></div>
+  <div class="beam-right-outer"></div>
+  <div class="beam-right-core"></div>
+  <div class="beam-flash"></div>
+  <div class="beam-ambient"></div>
+  <div class="beam-core-dot"></div>
+  <div class="beam-water-ellipse"></div>
+</div>
+<canvas id="star-canvas"></canvas>
+
+<audio id="wave-audio" preload="auto" loop crossorigin="anonymous">
+  <source src="https://raw.githubusercontent.com/psony3373/senantra-audio/0e9fe104bef310284e748f65290613c228fd8adb/dragon-studio-ocean-waves-376898.mp3" type="audio/mpeg">
+</audio>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-brand" href="index.html" id="btn-return" aria-label="Sénantra — return to Polaris">
+    <img src="assets/teal-flame-logo.svg" alt="">
+    <span>Sénantra</span>
+  </a>
+  <button class="sound-toggle" id="audio-toggle" type="button" aria-pressed="false" aria-label="Listen to the ocean threshold">
+    <span>Listen</span>
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 8h3l4-3.2v10.4l-4-3.2h-3z"/><path d="M13.1 7.1a4.1 4.1 0 0 1 0 5.8M15.2 5.1a7 7 0 0 1 0 9.8"/></svg>
+  </button>
+</nav>
+
+<!-- CONTENT -->
+<main>
+  <div class="lh-content">
+    <p class="lh-eyebrow">✦ &nbsp; T H E &nbsp; T H R E S H O L D &nbsp; ✦</p>
+    <p class="lh-quote">
+      "Before the island was named,<br>
+      there was only a solitary light<br>
+      calling lost souls home…"
+    </p>
+    <div class="lh-divider">
+      <span class="lh-divider-line left"></span>
+      <span class="lh-divider-diamond"></span>
+      <span class="lh-divider-line right"></span>
+    </div>
+    <div class="lh-buttons">
+      <div class="senantra-cta-unit">
+        <a class="lh-btn lh-btn-primary" href="music-vault/" id="btn-frequency">ENTER THE FREQUENCY</a>
+        <span class="senantra-cta-note">Open the Music Vault</span>
+      </div>
+      <div class="senantra-cta-unit">
+        <a class="lh-btn lh-btn-secondary" href="the-keepers.html" id="btn-discover">CONTINUE THE JOURNEY</a>
+        <span class="senantra-cta-note">Encounter Eryx and Elyra</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="transition-overlay" id="transition-overlay"></div>
+
+<script>
+/* Cleanup */
+setTimeout(()=>{
+  ['seq-home','seq-fog','seq-black']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.remove();});
+},7200);
+
+/* Audio */
+const waveAudio=document.getElementById('wave-audio');
+const audioBtn=document.getElementById('audio-toggle');
+let audioOn=false,started=false;
+function updateAudioControl(){
+  audioBtn.classList.toggle('active',audioOn);
+  audioBtn.setAttribute('aria-pressed',String(audioOn));
+  audioBtn.setAttribute('aria-label',audioOn?'Mute the ocean threshold':'Listen to the ocean threshold');
+  audioBtn.querySelector('span').textContent=audioOn?'Mute':'Listen';
+}
+updateAudioControl();
+function startWave(){
+  if(started)return;started=true;waveAudio.volume=0;
+  waveAudio.play().catch(()=>{started=false;audioOn=false;updateAudioControl();});
+  let v=0;const t=setInterval(()=>{v=Math.min(v+0.006,0.28);waveAudio.volume=v;if(v>=0.28)clearInterval(t);},200);
+}
+function stopWave(cb){
+  let v=waveAudio.volume;
+  const t=setInterval(()=>{v=Math.max(v-0.025,0);waveAudio.volume=v;
+    if(v<=0){clearInterval(t);waveAudio.pause();waveAudio.currentTime=0;started=false;if(cb)cb();}
+  },100);
+}
+audioBtn.addEventListener('click',()=>{
+  audioOn=!audioOn;updateAudioControl();
+  if(audioOn)startWave();else stopWave();
+});
+
+/* Stars */
+(function(){
+  const c=document.getElementById("star-canvas"),ctx=c.getContext("2d");
+  let W,H,stars=[];
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;}
+  function mk(){return{x:Math.random()*W,y:Math.random()*H*.72,r:Math.random()*.6+.1,a:Math.random()*.14+.03,sp:Math.random()*.004+.001,ph:Math.random()*Math.PI*2};}
+  function init(){resize();stars=[];for(let i=0;i<Math.floor(W*H/5800);i++)stars.push(mk());}
+  let f=0;
+  (function draw(){ctx.clearRect(0,0,W,H);f++;
+    stars.forEach(s=>{const a=s.a+Math.sin(f*s.sp+s.ph)*.08;
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle="rgba(200,225,255,"+Math.max(.02,Math.min(.22,a))+")";ctx.fill();});
+    requestAnimationFrame(draw);})();
+  window.addEventListener("resize",init);init();
+  setTimeout(()=>{const sc=document.getElementById("star-canvas");sc.style.transition="opacity 2.5s ease";sc.style.opacity="1";},5500);
+})();
+
+/* Buttons */
+['btn-frequency','btn-discover','btn-return'].forEach(id=>{
+  const btn=document.getElementById(id);if(!btn)return;
+  btn.addEventListener('click',e=>{
+    e.preventDefault();
+    const ov=document.getElementById('transition-overlay');
+    if(audioOn)stopWave();
+    ov.classList.add('active');
+    setTimeout(()=>{window.location.href=btn.getAttribute('href');},1500);
+  });
+});
+</script>
+</body>
+</html>
